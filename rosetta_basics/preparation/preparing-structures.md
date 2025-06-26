@@ -1,6 +1,8 @@
 #How to prepare structures for use in Rosetta
 >本页描述了为 Rosetta 准备蛋白质结构的标准流程。如果你需要准备配体（ligand）用于 Rosetta，请参阅 [[preparing ligands]] 页面以及 教程链接。
+
 *This page describes the standard procedure for preparing protein structures for Rosetta. To prepare ligands for use with Rosetta, see the [[preparing ligands]] page and [tutorial](https://www.rosettacommons.org/demos/latest/tutorials/prepare_ligand/prepare_ligand_tutorial).
+
 >如需准备非肽聚合物结构，请查看 [[preparing PDB files for non-peptide polymers]] 页面。
 To prepare non-peptide polymers, see the [[preparing PDB files for non-peptide polymers]] page.
 >对于包含蛋白质和 RNA 的 PDB 文件，请参考 [[RNA-protein changes]] 页面。
