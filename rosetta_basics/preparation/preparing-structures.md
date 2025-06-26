@@ -79,8 +79,11 @@ While the previous script (clean_pdb.py) discarded most to all HETATM records, t
 # Relax With All-Heavy-Atom Constraints: Introduction
 
 (See also the [[relax documentation|relax]] .)
->Relax 是 Rosetta 的核心操作之一，它优化结构以适应其能量函数。但 relax 会移动骨架原子（backbone），可能导致结构偏离原始状态。
->为防止偏离过大，可以使用坐标约束（coordinate constraints）限制所有原子尽可能贴近原始坐标。这种方式称为 全重原子约束放松（all-heavy-atom constrained relax）。
+>我们寻找了一种方法，既能同时最小化Rosetta能量，又能使晶体结构中的所有重原子尽可能保持起始位置。
+>正如下文许多帖子——或来之不易的经验——所表明的那样，对结构运行relax操作通常会使主链移动几埃。
+>我们目前发现的最佳同步优化方法是：始终开启约束运行relax（通常在relax运行后期循环中约束会逐步减弱），并且不仅约束主链原子，还要约束侧链原子（可通过flags或[[约束文件|constraint-file]]实现，参见[[preparing-structures#generating-constraints-file-for-your-pdb]]）。
+>该方案已在51个蛋白质的基准测试集中验证，与原始PDB结构中的设计相比，酶设计的序列恢复率提高了5%。
+>在从原始PDB到"带约束relax处理PDB"的过程中，整个蛋白质组的C-alpha原子均方根偏差（RMSD）仅为0.077埃。
 We looked for a way to simultaneously minimize Rosetta energy and keep all heavy atoms in a crystal structure as close as possible to their starting positions. 
 As many posts below—or hard-won experience—will show, running relax on a structure will often move the backbone a few Angstroms. 
 The best way we have found to perform the simultaneous optimization is to run relax with constraints always turned on (typically constraints ramp down in the late cycles of a relax run) and to constrain not just backbone but also side-chain atoms (which can be done with both flags or a [[constraint file|constraint-file]], see [[preparing-structures#generating-constraints-file-for-your-pdb]]).
