@@ -1,19 +1,29 @@
 #How to prepare structures for use in Rosetta
-
-*This page describes the standard procedure for preparing protein structures for Rosetta. To prepare ligands for use with Rosetta, see the [[preparing ligands]] page and [tutorial](https://www.rosettacommons.org/demos/latest/tutorials/prepare_ligand/prepare_ligand_tutorial). To prepare non-peptide polymers, see the [[preparing PDB files for non-peptide polymers]] page.  For PDB files containing both proteins and RNA, see the [[RNA-protein changes]] page.
+>本页描述了为 Rosetta 准备蛋白质结构的标准流程。如果你需要准备配体（ligand）用于 Rosetta，请参阅 [[preparing ligands]] 页面以及 教程链接。
+*This page describes the standard procedure for preparing protein structures for Rosetta. To prepare ligands for use with Rosetta, see the [[preparing ligands]] page and [tutorial](https://www.rosettacommons.org/demos/latest/tutorials/prepare_ligand/prepare_ligand_tutorial).
+>如需准备非肽聚合物结构，请查看 [[preparing PDB files for non-peptide polymers]] 页面。
+To prepare non-peptide polymers, see the [[preparing PDB files for non-peptide polymers]] page.
+>对于包含蛋白质和 RNA 的 PDB 文件，请参考 [[RNA-protein changes]] 页面。
+For PDB files containing both proteins and RNA, see the [[RNA-protein changes]] page.
 
 You can find the introductory tutorial [here](https://www.rosettacommons.org/demos/latest/tutorials/input_and_output/input_and_output#controlling-input_preparing-a-structure-by-refinement). For details, continue reading.
 
 [[_TOC_]]
 
 # Application Purpose
-
+>从 RCSB PDB 下载的结构通常并不直接适用于 Rosetta，常见的问题包括：
+>原子之间存在碰撞（clash）
+>氨基酸的构象能量过高（如 rotamer 处于不合理状态）
+>其他异常错误
 Structures derived straight from the PDB are almost never perfectly compatible with Rosetta—it is common for them to have clashes (atom overlaps), amino acid rotamers with terrible Rosetta energy, or other errors. 
 It is often beneficial to prepare the structures before doing real work on them to get these errors out of the way beforehand. This provides several benefits:
-
+>结构设计过程中，Rosetta 可能会因为输入结构中原有残基冲突或构象问题而错误替换氨基酸。预处理可保留野生型氨基酸，避免不必要更改。
 -   In design, Rosetta often places a certain amino acid solely because the original has a bad clash or rotamer energy, preparing structures first will allow Rosetta to keep the wild-type amino acid and minimize the number of changes made based on incorrect scoring of the native.
+>各路径模拟时无需重复修复同一结构问题，提升效率。
 -   Less time is spent in each trajectory independently re-relaxing the same errors in the input.
+>输出结果更一致，不因路径差异造成误差。
 -   The results have less noise caused by errors being handled in different ways in different trajectories.
+>最终结构评分更低（更合理）——一个良好折叠的蛋白不应在 score12 或 talaris 能量函数中出现正值。
 -   Scores are lower overall—you should never have positive score12 (or talaris) scores for a well folded protein.
 
 # References
@@ -22,13 +32,15 @@ Nivón LG, Moretti R, Baker D (2013) A Pareto-Optimal Refinement Method for Prot
 
 # How Do I Prepare Structures?
 
-Preparing structures is inextricably linked to what you want to do with them. 
-In other words, your main protocol dictates your preparation protocol. 
-Remember that all you're really doing here is relaxing into Rosetta's energy function—you're not necessarily making it objectively more correct (although clashes are generally wrong), you're really just making Rosetta like it better. 
+Preparing structures is inextricably linked to what you want to do with them. >结构准备方式与你想要进行的模拟类型紧密相关。
+In other words, your main protocol dictates your preparation protocol. >本质上，你的主模拟流程决定了结构准备流程。
+>Rosetta 的 relax 操作并不总是让结构“更接近真实”，而是让结构更符合 Rosetta 的能量函数。你是在“调整结构以让 Rosetta 更喜欢它”。
+Remember that all you're really doing here is relaxing into Rosetta's energy function—you're not necessarily making it objectively more correct (although clashes are generally wrong), you're really just making Rosetta like it better.
+>以下是一个针对酶设计的 benchmark 流程，也适用于大多数设计场景。其他用途可按需调整。
 What follows is a protocol that has been benchmarked for enzyme design and should work for any design situation, and then a series of suggestions from Rosetta developers for other situations.
 
 # Cleaning PDBs for Rosetta
-
+>从 PDB 官网下载的文件常常包含 Rosetta 无法处理的信息，例如水分子（Rosetta 默认不处理），非标准残基等。
 Parsing a PDB structure downloaded from the [[PDB|http://www.rcsb.org/pdb/home/home.do]] often results in an error.
 This is mostly due to the PDB containing extraneous information (such as waters which are not modeled by Rosetta).
 Occasionally, this is due to Rosetta not being able to parse a particular chemical entity.
@@ -38,9 +50,9 @@ The simplest way to clean a PDB file is by running the following command-line ex
 ```
 grep "^ATOM" SOME.pdb > SOME.clean.pdb
 ```
-
+>这种方式较为粗暴，会删除 PDB 文件中可能有用的信息。
 **Warning:** this is rather barbaric and will get rid of PDB information which could be valuable.
-
+>该脚本仅保留 "ATOM" 和 "TER" 行，移除 "HETATM"（除非是 selenomethionine）、0 占据率的残基等。
 There is also a script, `tools/protein_tools/scripts/clean_pdb.py`, for cleaning the PDB which will remove most lines that cannot be parsed by Rosetta.
 As of June 9th, 2015, the script leaves only lines starting with 'ATOM' or 'TER' and removes 'HETATM' records unless the residue is a selenomethionine.
 It also removes residues with 0 occupancy.
@@ -52,22 +64,23 @@ python clean_pdb.py <pdb> <chain id>
 ```
 
 ## Clean PDBs with Ligand
-
+>如果你的 PDB 文件包含 ligand（HETATM），并希望保留它，可以使用以下脚本：
 There are cases where your PDB may contain a HETATM ligand, for obvious reasons you may want to relax the PDB with the ligand.
 We often clean structures to replace non-canonical amino acids with their closest counterparts using `clean_pdb_keep_ligand.py`:
 ```
 python clean_pdb_keep_ligand.py your_structure_original.pdb -ignorechain
 ```
-
+>此脚本可用于保留链和配体，适合单链 PDB。多链结构可分开处理，或使用 -ignorechain 保留所有链。
 These protocols are designed for a single-chain PDB. 
 For multiple chains we recommend that you split the PDB into one for each chain and run the protocol separately on each. Alternatively, you can try using the `-ignorechain` option of the script, which will keep all chains.
 
-While the previous script (clean_pdb.py) discarded most to all HETATM records, this script keeps HETATMs which are not non-canonical ligands.
+While the previous script (clean_pdb.py) discarded most to all HETATM records, this script keeps HETATMs which are not non-canonical ligands(非规范配体).
 
 # Relax With All-Heavy-Atom Constraints: Introduction
 
 (See also the [[relax documentation|relax]] .)
-
+>Relax 是 Rosetta 的核心操作之一，它优化结构以适应其能量函数。但 relax 会移动骨架原子（backbone），可能导致结构偏离原始状态。
+>为防止偏离过大，可以使用坐标约束（coordinate constraints）限制所有原子尽可能贴近原始坐标。这种方式称为 全重原子约束放松（all-heavy-atom constrained relax）。
 We looked for a way to simultaneously minimize Rosetta energy and keep all heavy atoms in a crystal structure as close as possible to their starting positions. 
 As many posts below—or hard-won experience—will show, running relax on a structure will often move the backbone a few Angstroms. 
 The best way we have found to perform the simultaneous optimization is to run relax with constraints always turned on (typically constraints ramp down in the late cycles of a relax run) and to constrain not just backbone but also side-chain atoms (which can be done with both flags or a [[constraint file|constraint-file]], see [[preparing-structures#generating-constraints-file-for-your-pdb]]).
