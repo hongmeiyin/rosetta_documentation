@@ -14,8 +14,11 @@ You can find the introductory tutorial [here](https://www.rosettacommons.org/dem
 
 # Application Purpose
 >从 RCSB PDB 下载的结构通常并不直接适用于 Rosetta，常见的问题包括：
+
 >原子之间存在碰撞（clash）
+
 >氨基酸的构象能量过高（如 rotamer 处于不合理状态）
+
 >其他异常错误
 
 Structures derived straight from the PDB are almost never perfectly compatible with Rosetta—it is common for them to have clashes (atom overlaps), amino acid rotamers with terrible Rosetta energy, or other errors. 
@@ -96,17 +99,22 @@ While the previous script (clean_pdb.py) discarded most to all HETATM records, t
 # Relax With All-Heavy-Atom Constraints: Introduction
 
 (See also the [[relax documentation|relax]] .)
->我们寻找了一种方法，既能同时最小化Rosetta能量，又能使晶体结构中的所有重原子尽可能保持起始位置。
->正如下文许多帖子——或来之不易的经验——所表明的那样，对结构运行relax操作通常会使主链移动几埃。
->我们目前发现的最佳同步优化方法是：始终开启约束运行relax（通常在relax运行后期循环中约束会逐步减弱），并且不仅约束主链原子，还要约束侧链原子（可通过flags或[[约束文件|constraint-file]]实现，参见[[preparing-structures#generating-constraints-file-for-your-pdb]]）。
->该方案已在51个蛋白质的基准测试集中验证，与原始PDB结构中的设计相比，酶设计的序列恢复率提高了5%。
->在从原始PDB到"带约束relax处理PDB"的过程中，整个蛋白质组的C-alpha原子均方根偏差（RMSD）仅为0.077埃。
 
 We looked for a way to simultaneously minimize Rosetta energy and keep all heavy atoms in a crystal structure as close as possible to their starting positions. 
+>我们寻找了一种方法，既能同时最小化Rosetta能量，又能使晶体结构中的所有重原子尽可能保持起始位置。
+
 As many posts below—or hard-won experience—will show, running relax on a structure will often move the backbone a few Angstroms. 
+>正如下文许多帖子——或来之不易的经验——所表明的那样，对结构运行relax操作通常会使主链移动几埃。
+
 The best way we have found to perform the simultaneous optimization is to run relax with constraints always turned on (typically constraints ramp down in the late cycles of a relax run) and to constrain not just backbone but also side-chain atoms (which can be done with both flags or a [[constraint file|constraint-file]], see [[preparing-structures#generating-constraints-file-for-your-pdb]]).
+>我们目前发现的最佳同步优化方法是：始终开启约束运行relax（通常在relax运行后期循环中约束会逐步减弱），并且不仅约束主链原子，还要约束侧链原子（可通过flags或[[约束文件|constraint-file]]实现，参见[[preparing-structures#generating-constraints-file-for-your-pdb]]）。
+
 This protocol has been tested on a benchmark set of 51 proteins and found to increase sequence recovery in enzyme design by 5% as compared with design in raw PDB structures. 
+>该方案已在51个蛋白质的基准测试集中验证，与原始PDB结构中的设计相比，酶设计的序列恢复率提高了5%。
+
 It accomplishes this with only .077 Angstrom RMSD over the set of proteins (C-alpha RMSD) from raw PDB to relaxed-with-csts PDB. 
+>在从原始PDB到"带约束relax处理PDB"的过程中，整个蛋白质组的C-alpha原子均方根偏差（RMSD）仅为0.077埃。
+
 A more complete description of the data leading to this protocol is below.
 
 # Relax With All-Heavy-Atom Constraints: Protocol
@@ -184,23 +192,45 @@ Run time is approximately 30 minutes for a 340 residue protein.
 
 The bracketed `extra_res_fa` only applies if there are any ligand(s) in the structure. 
 The example flags file listed below was used in testing:
-
->pro_hydroxylated_case1    脯氨酸羟基化（情况1）
->pro_hydroxylated_case2    脯氨酸羟基化（情况2）
->ser_phosphorylated        丝氨酸磷酸化
->thr_phosphorylated        苏氨酸磷酸化
->tyr_phosphorylated        酪氨酸磷酸化
->tyr_sulfated              酪氨酸硫酸化
->lys_dimethylated          赖氨酸二甲基化
->lys_monomethylated        赖氨酸单甲基化
->lys_trimethylated         赖氨酸三甲基化
->lys_acetylated            赖氨酸乙酰化
->glu_carboxylated          谷氨酸羧基化
->cys_acetylated            半胱氨酸乙酰化
->tyr_diiodinated           酪氨酸二碘化
->N_acetylated              N端乙酰化
->C_methylamidated          C端甲基酰胺化
->MethylatedProteinCterm    蛋白质C端甲基化
+```
+-ex1
+-ex2
+-use_input_sc
+-correct
+-no_his_his_pairE
+-score::hbond_params correct_params
+-lj_hbond_hdis 1.75
+-lj_hbond_OH_donor_dis 2.6
+-linmem_ig 10
+-nblist_autoupdate true
+-no_optH false
+-flip_HNQ
+-chemical:exclude_patches LowerDNA UpperDNA Cterm_amidation SpecialRotamer
+VirtualBB ShoveBB VirtualDNAPhosphate VirtualNTerm CTermConnect sc_orbitals
+pro_hydroxylated_case1 pro_hydroxylated_case2 ser_phosphorylated
+thr_phosphorylated tyr_phosphorylated tyr_sulfated lys_dimethylated
+lys_monomethylated lys_trimethylated lys_acetylated glu_carboxylated
+cys_acetylated tyr_diiodinated N_acetylated C_methylamidated
+MethylatedProteinCterm
+```
+|氨基酸残基修饰 or 蛋白质末端修饰|
+|---|
+|pro_hydroxylated_case1    脯氨酸羟基化（情况1）|
+|pro_hydroxylated_case2    脯氨酸羟基化（情况2）|
+|ser_phosphorylated        丝氨酸磷酸化|
+|thr_phosphorylated        苏氨酸磷酸化|
+|tyr_phosphorylated        酪氨酸磷酸化|
+|tyr_sulfated              酪氨酸硫酸化|
+|lys_dimethylated          赖氨酸二甲基化|
+|lys_monomethylated        赖氨酸单甲基化|
+|lys_trimethylated         赖氨酸三甲基化|
+|lys_acetylated            赖氨酸乙酰化|
+|glu_carboxylated          谷氨酸羧基化|
+|cys_acetylated            半胱氨酸乙酰化|
+|tyr_diiodinated           酪氨酸二碘化|
+|N_acetylated              N端乙酰化|
+|C_methylamidated          C端甲基酰胺化|
+|MethylatedProteinCterm    蛋白质C端甲基化|
 >这些术语描述了蛋白质翻译后修饰（Post-Translational Modifications, PTMs），即蛋白质在合成后发生的化学修饰，可能影响其功能、定位或稳定性。具体分类如下：
 > 1. 氨基酸残基修饰
 
@@ -225,27 +255,6 @@ The example flags file listed below was used in testing:
 > N端修饰 N_acetylated：N端乙酰化，常见于真核蛋白，影响稳定性和定位。
 
 > C端修饰 MethylatedProteinCterm：蛋白质C端甲基化，可能调控蛋白质-蛋白质相互作用或半衰期。
-```
--ex1
--ex2
--use_input_sc
--correct
--no_his_his_pairE
--score::hbond_params correct_params
--lj_hbond_hdis 1.75
--lj_hbond_OH_donor_dis 2.6
--linmem_ig 10
--nblist_autoupdate true
--no_optH false
--flip_HNQ
--chemical:exclude_patches LowerDNA UpperDNA Cterm_amidation SpecialRotamer
-VirtualBB ShoveBB VirtualDNAPhosphate VirtualNTerm CTermConnect sc_orbitals
-pro_hydroxylated_case1 pro_hydroxylated_case2 ser_phosphorylated
-thr_phosphorylated tyr_phosphorylated tyr_sulfated lys_dimethylated
-lys_monomethylated lys_trimethylated lys_acetylated glu_carboxylated
-cys_acetylated tyr_diiodinated N_acetylated C_methylamidated
-MethylatedProteinCterm
-```
 
 Note: Including extra rotamers is important if your goal is to keep all side-chain atoms tightly constrained; if that is not important for your applications, exclude the ex1 and ex2 for speed.
 >注意：如果你的目标是保持所有侧链原子的紧密约束，那么包括额外的旋转异构体是很重要的；如果这对您的应用程序不重要，请排除ex1和ex2以提高速度。
@@ -367,6 +376,7 @@ But recently I observed that though 'relax' is able to substantially decrease th
 ## James's Reply
 
 Try adding the `-constrain_relax_to_start_coords` option to your protocol \#3.
+>尝试在您的Protocol #3中添加-constrain_relax_to_start_coords选项。
 
 ## Ben's Reply
 
