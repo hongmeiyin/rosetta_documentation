@@ -403,54 +403,83 @@ I'm pasting my typical options file below:
 -min_all_jumps true
 -mute protocols.moves.RigidBodyMover protocols.moves.RigidBodyMover core.scoring.etable core.pack.task protocols.docking.DockingInitialPerturbation protocols.TrialMover core.io.database
 ```
+>我一直在使用一个协议，该协议包括侧链（sc）和主链（bb）最小化、使用 -use_input_sc 进行完全包装（full packing），然后对主链（bb）、刚体（rb）和侧链（sc）进行最小化。这个协议位于：rosetta/rosetta_source/src/apps/pilot/stranges/InterfaceStructMaker.cc。这样做的目的是防止结构偏离起始构象太远。由于没有主链采样，我通常发现与晶体结构的RMSD会小于1.0。而 Relax 实际上会进行显式的主链采样，因此可以得到比我的协议能量更低的结构，但也可能引入你所观察到的变化。下面我粘贴了我常用的选项文件：
 
 ## Sagar's Reply
 
 I just use repack with `-sc_min`, and include the ligand in the process.
+>我通常只使用 repack 并加上 -sc_min 选项，同时在此过程中包含配体（ligand）。
+>repack → Rosetta 的侧链重排（repacking），优化侧链构象以降低能量。
+>-sc_min → 在 repack 后执行侧链最小化（side-chain minimization），进一步优化侧链位置。
 
 ## Rocco's Reply
 
 There is a fixed-backbone minimization program that's part of the ligand docking application, ligand\_rpkmin (See section "Preparing the protein receptor for docking" of [[the ligand docking documentation|ligand dock]].
+>在配体对接（ligand docking）应用中，有一个固定主链的最小化程序，名为 ligand_rpkmin（具体可参考[[配体对接文档|ligand dock]]中的“准备蛋白受体用于对接”部分）。
 
 It won't relieve any backbone strain, though, so you may still have issues if the downstream protocol allows for backbone movement.
+>不过，该程序不会缓解主链张力，因此，如果后续流程允许主链移动，仍可能出现问题。
 
 ## Steven C.'s Reply
 
 In general, the Meiler lab does the following:
+>Meiler 实验室的常规处理流程如下：
 
 1. Obtain the protein using a script (see attached python scripts. (scripts were written by I believe James Thompson from the Baker lab and edited by me to work with the Meiler lab configuration) The script cleans, renumbers, and removes multiple conformations of residues from the protein.
-2. `relax.linuxgccrelease -ex1 -ex2 -ex1aro -relax:sequence`
+>使用脚本获取蛋白结构（见附带的 Python 脚本）。这些脚本最初由 Baker 实验室的 James Thompson 编写，后经我修改以适应 Meiler 实验室的配置。这个脚本清理 PDB 文件、重新编号残基、移除残基的多重构象（如 X 射线晶体结构中的 alternate conformations）。
+
+2. `relax.linuxgccrelease -ex1 -ex2 -ex1aro -relax:sequence` 
+>运行 relax.linuxgccrelease -ex1 -ex2 -ex1aro -relax:sequence
 
 This will alleviate clashes in the protein and give a good starting structure for any of the Rosetta applications...unless the protein blows up for some reason.
+>缓解蛋白内的原子冲突（clashes），为后续 Rosetta 应用提供良好的初始结构。例外情况：除非蛋白因某些原因“崩解”（如力场不兼容或极端构象）。
 
 With an addendum from James Thompson:
+>James Thompson 的补充说明
 
 Thanks Steven! That's a very reasonable way to gently structures from the PDB, although there are a lot of different ways that you might try this.
+>感谢 Steven！这是从 PDB 中温和处理结构的合理方法，尽管还有许多其他可行方案。
 
 Here are two more things that come to mind:
 
 -   If you notice that your protein is moving too much, try adding the `-constrain_relax_to_start_coords` option. This will use coordinate constraints to make your protein stay closer to your input model.
+    >若蛋白移动过多，可添加 -constrain_relax_to_start_coords 选项：通过坐标约束（coordinate constraints）使蛋白更接近初始模型。
+    
 -   Also, Mike Tyka wrote that script for cleaning up PDBs. One of the most useful parts of that script is that it matches non-canonical amino acids (such as selenomethionines) with the appropriate canonical amino acid.
+    >关于 PDB 清理脚本：由 Mike Tyka 编写，其核心功能是将 非标准氨基酸（如硒代甲硫氨酸）替换为对应的标准氨基酸。
 
 With a second addendum from Andrew Leaver-Fay:
+>Andrew Leaver-Fay 的补充说明
 
 I thought I might point out two things:
 
 1. ex1aro doesn't do anything extra if you already have ex1 on your command line. You can however set the sampling level for ex1aro to be higher than for ex1; e.g. `-ex1 -ex1aro:level 4`. This is stated very explicitly in the option documentation, yet still surprises a lot of people. In Rosetta++, `-ex1aro` behaved as if it were `-ex1aro:level 4`.
+>-ex1aro 的注意事项：若已启用 -ex1，则 -ex1aro 不会额外增加采样（除非单独设置级别，如 -ex1aro:level 4）。历史背景：在旧版 Rosetta++ 中，-ex1aro 默认等效于 -ex1aro:level 4。
+
 2. Mike has observed that extra rotamers will not yield better energy structures out of relax; they will however slow it down.
+>额外旋转异构体（rotamers）的影响：Mike Tyka 发现：增加旋转异构体（如 -ex2）不会显著降低能量，但会明显降低计算速度。
 
 # Limitations
 
 This is not "normal" relax, that is to say, it will not find the global energy minimum for your structure, it will only find a good energy that is consistent with the input atom positions.
+>这不是“常规”的松弛（relax）过程，也就是说，它不会找到结构的全局能量最小值，而只会找到一个与输入原子位置一致的局部能量较优点。
 
-# Post Processing
+# Post Processing 后处理
 
 What post processing steps are typical? 
-Are score vs RMSD plots useful? 
-Are structures clustered (if so, give a command line)? 
-Is it obvious when either the application has succeeded or if it has failed (e.g. if the protocol makes predictions like "This is the docked conformation of proteins A and B"). 
-In the case of designs, how should designs be selected?
+>典型的后处理步骤有哪些？
 
+Are score vs RMSD plots useful? 
+>得分（score）与 RMSD 的关系图是否有用？
+
+Are structures clustered (if so, give a command line)? 
+>是否对结构进行聚类（如果是，请给出命令行示例）？
+
+Is it obvious when either the application has succeeded or if it has failed (e.g. if the protocol makes predictions like "This is the docked conformation of proteins A and B"). 
+>如何判断程序运行成功或失败？（例如，如果协议输出类似“这是蛋白质 A 和 B 的对接构象”的预测结果）
+
+## In the case of designs, how should designs be selected?
+>对于蛋白质设计（designs），应如何筛选设计方案？
 ## See Also
 
 * [[Making Rosetta robust against malformed PDBs|robust]]
